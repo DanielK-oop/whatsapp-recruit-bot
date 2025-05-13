@@ -4,11 +4,8 @@ import requests
 
 app = Flask(__name__)
 
-# זיכרון זמני לשמירת הנתונים
 user_data = {}
-
-# שלבי שיחה לפי סדר
-steps = ["name", "city", "location", "cv_question", "cv", "email", "phone"]
+steps = ["name", "city", "location", "phone", "email"]
 
 locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
@@ -36,59 +33,38 @@ def webhook():
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
 
-        # אתחל אם המשתמש חדש
         if phone not in user_data:
             user_data[phone] = {"step": 0, "data": {}}
+            return respond(phone, "שלום! 👋\nהגעת לבוט החכם של מוקד הידברות.\nנשמח לבדוק התאמה למשרה עבורך – זה לוקח פחות מדקה ⏱\n\nמה שמך?")
 
         step_index = user_data[phone]["step"]
         current_step = steps[step_index]
 
         if current_step == "name":
             user_data[phone]["data"]["name"] = text
-            reply = "מה מקום מגוריך?"
+            reply = f"נעים מאוד {text}!\nמה כתובת המגורים שלך?"
 
         elif current_step == "city":
             user_data[phone]["data"]["city"] = text
             loc_list = "\n".join([f"{i+1}. {loc}" for i, loc in enumerate(locations)])
-            reply = f"לאיזה מוקד תרצה להצטרף? נא לבחור מספר:\n{loc_list}"
+            reply = f"אלו המוקדים שפתוחים כרגע לגיוס:\n\n{loc_list}\n\nלאיזה מוקד הכי נוח לך להגיע? (אפשר לכתוב את שם העיר או מספר)"
 
         elif current_step == "location":
-            try:
-                index = int(text.strip()) - 1
+            selected = text.strip()
+            if selected.isdigit():
+                index = int(selected) - 1
                 if 0 <= index < len(locations):
-                    user_data[phone]["data"]["location"] = locations[index]
-                    reply = "האם יש לך קובץ קורות חיים להעלות? (כן/לא)"
-                else:
-                    reply = "נא לבחור מספר תקף מהרשימה."
-                    return respond(phone, reply)
-            except:
-                reply = "נא להכניס מספר בלבד לבחירת המוקד."
-                return respond(phone, reply)
-
-        elif current_step == "cv_question":
-            if text.strip().lower() in ["כן", "yes"]:
-                reply = "נא לצרף את קובץ קורות החיים שלך (PDF / Word)"
-            else:
-                user_data[phone]["data"]["cv"] = "לא סופק"
-                user_data[phone]["step"] += 1
-                reply = "מה כתובת האימייל שלך?"
-                return respond(phone, reply)
-
-        elif current_step == "cv":
-            if "document" in message:
-                user_data[phone]["data"]["cv"] = message["document"]["filename"]
-                reply = "מה כתובת האימייל שלך?"
-            else:
-                reply = "נא לשלוח קובץ קורות חיים (ולא טקסט)."
-                return respond(phone, reply)
-
-        elif current_step == "email":
-            user_data[phone]["data"]["email"] = text
-            reply = "מה מספר הטלפון שלך?"
+                    selected = locations[index]
+            user_data[phone]["data"]["location"] = selected
+            reply = "מה מספר הטלפון שלך ליצירת קשר?"
 
         elif current_step == "phone":
             user_data[phone]["data"]["phone"] = text
-            reply = "תודה רבה! פרטיך התקבלו ונחזור אליך בהקדם."
+            reply = "ולסיום – כתובת המייל שלך?"
+
+        elif current_step == "email":
+            user_data[phone]["data"]["email"] = text
+            reply = "תודה רבה! 🙌\nקיבלנו את פרטיך ונחזור אליך בהקדם עם כל הפרטים."
 
         user_data[phone]["step"] += 1
         return respond(phone, reply)
@@ -96,6 +72,7 @@ def webhook():
     except Exception as e:
         print("Error:", e)
         return "ok", 200
+
 
 def respond(phone, message):
     print(f"Reply to {phone}: {message}")
@@ -113,6 +90,7 @@ def respond(phone, message):
     response = requests.post(url, headers=headers, json=payload)
     print("Sent:", response.status_code, response.text)
     return "ok", 200
+
 
 if __name__ == "__main__":
     app.run(debug=True)
