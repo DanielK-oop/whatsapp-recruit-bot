@@ -15,7 +15,7 @@ locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
 ]
 
-ACCESS_TOKEN = "EAAXcFjyykV8BO8gf8USaq2QzT5d83JRJgnt0ipsx2qZCOfqZCwQZBe8WLxUa7v7V8QCtL1vh4WHTwSofN1AxMXz5r5qBkcSwZBQOhQWN3lMtOg16T2lLUeeLEJhkNZBw5efosntlilpNbLSwx7u3UYGZAQOxH0CgIaMFXEIZBrSz8xnWZAKkakcSyrVvEK6G5NNencg12ZAedaHZCU5GqK3bigemCqlZC0NdlWg2vOB"
+ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = "653930387804211"
 
 @app.route("/webhook", methods=["GET"])
