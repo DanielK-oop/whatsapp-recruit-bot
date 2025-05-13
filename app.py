@@ -2,19 +2,21 @@ from flask import Flask, request, jsonify
 import os
 import requests
 import datetime
-import json
 import gspread
 from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
+# שמירת נתונים זמנית בזיכרון
 user_data = {}
 steps = ["name", "city", "location", "phone", "email"]
 
+# רשימת מוקדים
 locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
 ]
 
+# קבלת טוקנים מהסביבה
 ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = "653930387804211"
 
@@ -33,6 +35,9 @@ def webhook():
         entry = data["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
+        if "messages" not in value:
+            return "no message", 200
+
         message = value["messages"][0]
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
@@ -108,7 +113,9 @@ def save_to_sheet(data):
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
 
-        sheet = client.open("לידים גיוס מוקדי הידברות קיץ 2025").sheet1
+        # ❗️השם החדש של הגיליון:
+        sheet = client.open("לידים-מוקדים").sheet1
+
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
             data.get("name", ""),
