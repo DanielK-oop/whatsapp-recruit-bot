@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify
 import os
 import requests
+import datetime
+import json
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
@@ -33,8 +37,7 @@ def webhook():
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
 
-        # איפוס השיחה אם המשתמש כותב "חדש"
-        if text.strip().lower() in ["חדש"]:
+        if text.strip().lower() == "חדש":
             user_data[phone] = {"step": 0, "data": {}}
             return respond(phone, "השיחה אופסה ✅\n\nמה שמך?")
 
@@ -70,6 +73,7 @@ def webhook():
         elif current_step == "email":
             user_data[phone]["data"]["email"] = text
             reply = "תודה רבה! 🙌\nקיבלנו את פרטיך ונחזור אליך בהקדם עם כל הפרטים."
+            save_to_sheet(user_data[phone]["data"])
 
         user_data[phone]["step"] += 1
         return respond(phone, reply)
@@ -95,6 +99,30 @@ def respond(phone, message):
     response = requests.post(url, headers=headers, json=payload)
     print("Sent:", response.status_code, response.text)
     return "ok", 200
+
+
+def save_to_sheet(data):
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds_path = "/etc/secrets/credentials.json"
+        creds = Credentials.from_service_account_file(creds_path, scopes=scope)
+        client = gspread.authorize(creds)
+
+        sheet = client.open("לידים גיוס מוקדי הידברות קיץ 2025").sheet1
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        row = [
+            data.get("name", ""),
+            data.get("city", ""),
+            data.get("location", ""),
+            data.get("phone", ""),
+            data.get("email", ""),
+            now,
+            ""
+        ]
+        sheet.append_row(row)
+        print("Saved to Google Sheets")
+    except Exception as e:
+        print("Error saving to sheet:", e)
 
 
 if __name__ == "__main__":
