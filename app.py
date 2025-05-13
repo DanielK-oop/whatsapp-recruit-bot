@@ -33,6 +33,11 @@ def webhook():
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
 
+        # איפוס השיחה אם המשתמש כותב "חדש"
+        if text.strip().lower() in ["חדש"]:
+            user_data[phone] = {"step": 0, "data": {}}
+            return respond(phone, "השיחה אופסה ✅\n\nמה שמך?")
+
         if phone not in user_data:
             user_data[phone] = {"step": 0, "data": {}}
             return respond(phone, "שלום! 👋\nהגעת לבוט החכם של מוקד הידברות.\nנשמח לבדוק התאמה למשרה עבורך – זה לוקח פחות מדקה ⏱\n\nמה שמך?")
