@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
 import os
+import requests
 
 app = Flask(__name__)
 
-# זיכרון זמני לשמירת הנתונים (בהמשך נחבר ל-Google Sheets)
+# זיכרון זמני לשמירת הנתונים
 user_data = {}
 
 # שלבי שיחה לפי סדר
@@ -13,9 +14,11 @@ locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
 ]
 
+ACCESS_TOKEN = "EAAXcFjyykV8BO8gf8USaq2QzT5d83JRJgnt0ipsx2qZCOfqZCwQZBe8WLxUa7v7V8QCtL1vh4WHTwSofN1AxMXz5r5qBkcSwZBQOhQWN3lMtOg16T2lLUeeLEJhkNZBw5efosntlilpNbLSwx7u3UYGZAQOxH0CgIaMFXEIZBrSz8xnWZAKkakcSyrVvEK6G5NNencg12ZAedaHZCU5GqK3bigemCqlZC0NdlWg2vOB"
+PHONE_NUMBER_ID = "653930387804211"
+
 @app.route("/webhook", methods=["GET"])
 def verify():
-    # זה רק לצורך החיבור הראשוני מול Meta
     verify_token = os.environ.get("VERIFY_TOKEN", "my_verify_token")
     if request.args.get("hub.verify_token") == verify_token:
         return request.args.get("hub.challenge")
@@ -67,7 +70,7 @@ def webhook():
                 reply = "נא לצרף את קובץ קורות החיים שלך (PDF / Word)"
             else:
                 user_data[phone]["data"]["cv"] = "לא סופק"
-                user_data[phone]["step"] += 1  # דילוג על שלב הקובץ
+                user_data[phone]["step"] += 1
                 reply = "מה כתובת האימייל שלך?"
                 return respond(phone, reply)
 
@@ -94,12 +97,22 @@ def webhook():
         print("Error:", e)
         return "ok", 200
 
-
 def respond(phone, message):
     print(f"Reply to {phone}: {message}")
-    # בהמשך נוסיף שליחה אמיתית ל-API של וואטסאפ
+    url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "text",
+        "text": {"body": message}
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    print("Sent:", response.status_code, response.text)
     return "ok", 200
-
 
 if __name__ == "__main__":
     app.run(debug=True)
