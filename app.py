@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import requests
 import datetime
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -32,9 +33,6 @@ def webhook():
         entry = data["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
-        if "messages" not in value:
-            return "ok", 200
-
         message = value["messages"][0]
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
@@ -84,7 +82,6 @@ def webhook():
         print("Error:", e)
         return "ok", 200
 
-
 def respond(phone, message):
     print(f"Reply to {phone}: {message}")
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
@@ -102,15 +99,20 @@ def respond(phone, message):
     print("Sent:", response.status_code, response.text)
     return "ok", 200
 
-
 def save_to_sheet(data):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
         creds_path = "/etc/secrets/credentials.json"
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
 
-        sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
+        # Update with the correct file name and worksheet name
+        sheet = client.open("לידים-מוקדים")
+        worksheet = sheet.worksheet("גיליון1")
+
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
             data.get("name", ""),
@@ -121,11 +123,11 @@ def save_to_sheet(data):
             now,
             ""
         ]
-        sheet.append_row(row)
-        print("Saved to Google Sheets")
-    except Exception as e:
-        print("Error saving to sheet:", e)
+        worksheet.append_row(row)
+        print("✅ Saved to Google Sheets")
 
+    except Exception as e:
+        print("❌ Error saving to sheet:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)
