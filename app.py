@@ -8,10 +8,18 @@ from google.oauth2.service_account import Credentials
 app = Flask(__name__)
 
 user_data = {}
-steps = ["name", "city", "location", "phone", "email"]
+steps = ["name", "city", "location", "phone", "email", "experience"]
 
 locations = [
-    "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
+    "פתח תקווה",
+    "בני ברק",
+    "ירושלים",
+    "ביתר עלית",
+    "בית שמש",
+    "טבריה",
+    "צפת",
+    "נהריה",
+    "נתיבות"
 ]
 
 PHONE_NUMBER_ID = "653930387804211"
@@ -33,7 +41,7 @@ def webhook():
         value = changes["value"]
         messages = value.get("messages")
         if not messages:
-            return "ok", 200  # התעלמות משורות שאין בהן הודעה
+            return "ok", 200
 
         message = messages[0]
         phone = message["from"]
@@ -74,7 +82,11 @@ def webhook():
 
         elif current_step == "email":
             user_data[phone]["data"]["email"] = text
-            reply = "תודה רבה! 🙌\nקיבלנו את פרטיך ונחזור אליך בהקדם עם כל הפרטים."
+            reply = "ולסיום שאלה קטנה 😊\nהאם יש לך ניסיון קודם במוקד מכירות או מוקד התרמות?"
+
+        elif current_step == "experience":
+            user_data[phone]["data"]["experience"] = text
+            reply = "תודה רבה על המידע! 🙏\nהפרטים התקבלו ונחזור אליך בהקדם עם עדכון לגבי ההתאמה 😊"
             save_to_sheet(user_data[phone]["data"])
 
         user_data[phone]["step"] += 1
@@ -114,13 +126,14 @@ def save_to_sheet(data):
         sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
-            data.get("name", ""),
-            data.get("city", ""),
-            data.get("location", ""),
-            data.get("phone", ""),
-            data.get("email", ""),
-            now,
-            ""
+            data.get("name", ""),        # A
+            data.get("city", ""),        # B
+            data.get("location", ""),    # C
+            data.get("phone", ""),       # D
+            data.get("experience", ""),  # E
+            data.get("email", ""),       # F
+            now,                         # G
+            ""                           # H (הערות)
         ]
         sheet.append_row(row)
         print("✅ Saved to Google Sheets")
