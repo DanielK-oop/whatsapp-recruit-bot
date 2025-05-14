@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import os
 import requests
 import datetime
@@ -14,9 +14,9 @@ locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
 ]
 
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
-WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = "653930387804211"
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
+ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 
 @app.route("/webhook", methods=["GET"])
 def verify():
@@ -27,14 +27,13 @@ def verify():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-
     try:
         entry = data["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
-        messages = value.get("messages", [])
+        messages = value.get("messages")
         if not messages:
-            raise ValueError("No messages field")
+            return "ok", 200  # התעלמות משורות שאין בהן הודעה
 
         message = messages[0]
         phone = message["from"]
@@ -89,7 +88,7 @@ def respond(phone, message):
     print(f"Reply to {phone}: {message}")
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     payload = {
@@ -112,8 +111,7 @@ def save_to_sheet(data):
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
 
-        print("✅ Opening Google Sheet")
-        sheet = client.open_by_title("לידים-מוקדים").worksheet("גיליון1")
+        sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
             data.get("name", ""),
@@ -125,7 +123,7 @@ def save_to_sheet(data):
             ""
         ]
         sheet.append_row(row)
-        print("✅ Saved to Google Sheet")
+        print("✅ Saved to Google Sheets")
     except Exception as e:
         print("❌ Error saving to sheet:", e)
 
