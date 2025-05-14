@@ -14,13 +14,13 @@ locations = [
     "נהריה", "צפת", "ירושלים", "ביתר", "פתח תקווה", "בני ברק", "בית שמש"
 ]
 
-ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 PHONE_NUMBER_ID = "653930387804211"
 
 @app.route("/webhook", methods=["GET"])
 def verify():
-    verify_token = os.environ.get("VERIFY_TOKEN", "my_verify_token")
-    if request.args.get("hub.verify_token") == verify_token:
+    if request.args.get("hub.verify_token") == VERIFY_TOKEN:
         return request.args.get("hub.challenge")
     return "Unauthorized", 403
 
@@ -32,11 +32,11 @@ def webhook():
         entry = data["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
+        messages = value.get("messages", [])
+        if not messages:
+            raise ValueError("No messages field")
 
-        if "messages" not in value:
-            return "ok", 200
-
-        message = value["messages"][0]
+        message = messages[0]
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
 
@@ -82,14 +82,14 @@ def webhook():
         return respond(phone, reply)
 
     except Exception as e:
-        print("Error:", e)
+        print("❌ Error:", e)
         return "ok", 200
 
 def respond(phone, message):
     print(f"Reply to {phone}: {message}")
     url = f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages"
     headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
         "Content-Type": "application/json"
     }
     payload = {
@@ -104,12 +104,16 @@ def respond(phone, message):
 
 def save_to_sheet(data):
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
         creds_path = "/etc/secrets/credentials.json"
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
 
-        sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
+        print("✅ Opening Google Sheet")
+        sheet = client.open_by_title("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
             data.get("name", ""),
@@ -121,8 +125,7 @@ def save_to_sheet(data):
             ""
         ]
         sheet.append_row(row)
-        print("✅ Saved to Google Sheet.")
-
+        print("✅ Saved to Google Sheet")
     except Exception as e:
         print("❌ Error saving to sheet:", e)
 
