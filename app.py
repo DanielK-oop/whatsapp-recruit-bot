@@ -78,7 +78,7 @@ def webhook():
 
         elif current_step == "phone":
             user_data[phone]["data"]["phone"] = text
-            reply = "ולסיום – כתובת המייל שלך?"
+            reply = "מה הכתובת מייל שלך ?"
 
         elif current_step == "email":
             user_data[phone]["data"]["email"] = text
