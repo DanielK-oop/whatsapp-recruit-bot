@@ -1,8 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import os
 import requests
 import datetime
-import json
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -34,7 +33,6 @@ def webhook():
         changes = entry["changes"][0]
         value = changes["value"]
 
-        # אם אין הודעה (כמו אישור קריאה וכו') – לא ניגש ל messages
         if "messages" not in value:
             return "ok", 200
 
@@ -106,10 +104,7 @@ def respond(phone, message):
 
 def save_to_sheet(data):
     try:
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds_path = "/etc/secrets/credentials.json"
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
@@ -126,9 +121,10 @@ def save_to_sheet(data):
             ""
         ]
         sheet.append_row(row)
-        print("Saved to Google Sheets")
+        print("✅ Saved to Google Sheet.")
+
     except Exception as e:
-        print("Error saving to sheet:", e)
+        print("❌ Error saving to sheet:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)
