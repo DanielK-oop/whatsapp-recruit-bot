@@ -33,6 +33,11 @@ def webhook():
         entry = data["entry"][0]
         changes = entry["changes"][0]
         value = changes["value"]
+
+        # אם אין הודעה (כמו אישור קריאה וכו') – לא ניגש ל messages
+        if "messages" not in value:
+            return "ok", 200
+
         message = value["messages"][0]
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
@@ -109,10 +114,7 @@ def save_to_sheet(data):
         creds = Credentials.from_service_account_file(creds_path, scopes=scope)
         client = gspread.authorize(creds)
 
-        # Update with the correct file name and worksheet name
-        sheet = client.open("לידים-מוקדים")
-        worksheet = sheet.worksheet("גיליון1")
-
+        sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
             data.get("name", ""),
@@ -123,11 +125,10 @@ def save_to_sheet(data):
             now,
             ""
         ]
-        worksheet.append_row(row)
-        print("✅ Saved to Google Sheets")
-
+        sheet.append_row(row)
+        print("Saved to Google Sheets")
     except Exception as e:
-        print("❌ Error saving to sheet:", e)
+        print("Error saving to sheet:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)
