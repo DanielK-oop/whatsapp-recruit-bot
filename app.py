@@ -4,11 +4,12 @@ import requests
 import datetime
 import gspread
 from google.oauth2.service_account import Credentials
+import re
 
 app = Flask(__name__)
 
 user_data = {}
-steps = ["name", "city", "location", "phone", "email", "experience"]
+steps = ["full_name", "city", "location", "phone", "email", "experience"]
 
 locations = [
     "פתח תקווה",
@@ -46,29 +47,39 @@ def webhook():
         message = messages[0]
         phone = message["from"]
         text = message["text"]["body"] if "text" in message else ""
+        text = text.strip()
 
-        if text.strip().lower() == "חדש":
+        # איפוס שיחה
+        if text.lower() == "חדש":
             user_data[phone] = {"step": 0, "data": {}}
-            return respond(phone, "השיחה אופסה ✅\n\nמה שמך?")
+            return respond(phone, "השיחה אופסה ✅\n\nמה שמך המלא? (שם פרטי + שם משפחה)")
+
+        # אם כבר סיים – אל תענה שוב
+        if phone in user_data and user_data[phone]["step"] == "done":
+            return "ok", 200
 
         if phone not in user_data:
             user_data[phone] = {"step": 0, "data": {}}
-            return respond(phone, "שלום! 👋\nהגעת לבוט החכם של מוקד הידברות.\nנשמח לבדוק התאמה למשרה עבורך – זה לוקח פחות מדקה ⏱\n\nמה שמך?")
+            return respond(phone, "שלום! 👋\nהגעת לבוט החכם של מוקד הידברות.\nנשמח לבדוק התאמה למשרה עבורך – זה לוקח פחות מדקה ⏱\n\nמה שמך המלא? (שם פרטי + שם משפחה)")
 
         step_index = user_data[phone]["step"]
         current_step = steps[step_index]
 
-        if current_step == "name":
-            user_data[phone]["data"]["name"] = text
+        if current_step == "full_name":
+            if len(text.split()) < 2:
+                reply = "נראה ששלחת רק שם אחד 😊\nאנא כתוב את *שמך המלא* (כולל שם משפחה)"
+                return respond(phone, reply)
+
+            user_data[phone]["data"]["full_name"] = text
             reply = f"נעים מאוד {text}!\nמה כתובת המגורים שלך?"
 
         elif current_step == "city":
             user_data[phone]["data"]["city"] = text
             loc_list = "\n".join([f"{i+1}. {loc}" for i, loc in enumerate(locations)])
-            reply = f"אלו המוקדים שפתוחים כרגע לגיוס:\n\n{loc_list}\n\nלאיזה מוקד הכי נוח לך להגיע? (אפשר לכתוב את שם העיר או מספר)"
+            reply = f"אלו המוקדים שפתוחים כרגע לגיוס:\n\n{loc_list}\n\nלאיזה מוקד הכי נוח לך להגיע? (כתוב את שם העיר או מספר)"
 
         elif current_step == "location":
-            selected = text.strip()
+            selected = text
             if selected.isdigit():
                 index = int(selected) - 1
                 if 0 <= index < len(locations):
@@ -77,17 +88,32 @@ def webhook():
             reply = "מה מספר הטלפון שלך ליצירת קשר?"
 
         elif current_step == "phone":
+            if not re.match(r"^05\d{8}$", text):
+                reply = "נראה שמספר הטלפון ששלחת לא תקין 📱\nאנא כתוב מספר ישראלי בפורמט מלא, לדוגמה: 0521234567"
+                return respond(phone, reply)
+
             user_data[phone]["data"]["phone"] = text
-            reply = "מה הכתובת מייל שלך ?"
+            reply = "ולסיום – כתובת המייל שלך?"
 
         elif current_step == "email":
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", text):
+                reply = "נראה שכתובת המייל לא תקינה 📧\nאנא נסה שוב עם כתובת תקינה לדוגמה: daniel@gmail.com"
+                return respond(phone, reply)
+
             user_data[phone]["data"]["email"] = text
-            reply = "ולסיום שאלה קטנה 😊\nהאם יש לך ניסיון קודם במוקד מכירות או מוקד התרמות?"
+            reply = "ולפני סיום שאלה קטנה 😊\nהאם יש לך ניסיון קודם במוקד מכירות או מוקד התרמות?"
 
         elif current_step == "experience":
             user_data[phone]["data"]["experience"] = text
+
             reply = "תודה רבה על המידע! 🙏\nהפרטים התקבלו ונחזור אליך בהקדם עם עדכון לגבי ההתאמה 😊"
+            respond(phone, reply)
+
             save_to_sheet(user_data[phone]["data"])
+
+            closing = "🌟 תודה שפנית אלינו! מאחלים לך המון הצלחה, ונשמח להיות איתך בקשר 🤝\n\nלהתחלה חדשה של שיחה כתוב 'חדש'"
+            user_data[phone]["step"] = "done"
+            return respond(phone, closing)
 
         user_data[phone]["step"] += 1
         return respond(phone, reply)
@@ -126,14 +152,14 @@ def save_to_sheet(data):
         sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
-            data.get("name", ""),        # A
-            data.get("city", ""),        # B
-            data.get("location", ""),    # C
-            data.get("phone", ""),       # D
-            data.get("experience", ""),  # E
-            data.get("email", ""),       # F
-            now,                         # G
-            ""                           # H (הערות)
+            data.get("full_name", ""),    # A
+            data.get("city", ""),         # B
+            data.get("location", ""),     # C
+            data.get("phone", ""),        # D
+            data.get("experience", ""),   # E
+            data.get("email", ""),        # F
+            now,                          # G
+            ""                            # H הערות
         ]
         sheet.append_row(row)
         print("✅ Saved to Google Sheets")
