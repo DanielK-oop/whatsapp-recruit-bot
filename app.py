@@ -49,12 +49,10 @@ def webhook():
         text = message["text"]["body"] if "text" in message else ""
         text = text.strip()
 
-        # איפוס שיחה
         if text.lower() == "חדש":
             user_data[phone] = {"step": 0, "data": {}}
             return respond(phone, "השיחה אופסה ✅\n\nמה שמך המלא? (שם פרטי + שם משפחה)")
 
-        # אם כבר סיים – אל תענה שוב
         if phone in user_data and user_data[phone]["step"] == "done":
             return "ok", 200
 
@@ -84,7 +82,6 @@ def webhook():
 
         elif current_step == "location":
             selected = text
-
             if selected.isdigit():
                 index = int(selected) - 1
                 if 0 <= index < len(locations):
@@ -92,7 +89,6 @@ def webhook():
                 else:
                     reply = "אנא הקש מספר בין 1 ל־9 ✍️ או כתוב את שם העיר כפי שמופיע ברשימה"
                     return respond(phone, reply)
-
             elif selected not in locations:
                 reply = "לא זיהינו את שם העיר ששלחת 🤔\nאנא כתוב את *שם העיר בדיוק כפי שמופיע ברשימה* או הקש מספר בין 1 ל־9"
                 return respond(phone, reply)
@@ -118,13 +114,10 @@ def webhook():
 
         elif current_step == "experience":
             user_data[phone]["data"]["experience"] = text
-
             reply = "תודה רבה על המידע! 🙏\nהפרטים התקבלו ונחזור אליך בהקדם עם עדכון לגבי ההתאמה 😊"
             respond(phone, reply)
-
             save_to_sheet(user_data[phone]["data"])
-
-            closing = "🌟 תודה שפנית אלינו! מאחלים לך המון הצלחה, ונשמח להיות איתך בקשר 🤝\n\nלהתחלה חדשה של שיחה כתוב 'חדש'\n\n*צוות מוקדי הידברות*"
+            closing = "הפרטים הועברו בהצלחה ✅\nנחזור אליך בהקדם בקשר לפרטים ששלחת.\nתודה רבה על פנייתך 🙏\nצוות מוקדי הידברות"
             user_data[phone]["step"] = "done"
             return respond(phone, closing)
 
@@ -165,14 +158,14 @@ def save_to_sheet(data):
         sheet = client.open("לידים-מוקדים").worksheet("גיליון1")
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         row = [
-            data.get("full_name", ""),    # A
-            data.get("city", ""),         # B
-            data.get("location", ""),     # C
-            data.get("phone", ""),        # D
-            data.get("experience", ""),   # E
-            data.get("email", ""),        # F
-            now,                          # G
-            ""                            # H הערות
+            data.get("full_name", ""),
+            data.get("city", ""),
+            data.get("location", ""),
+            data.get("phone", ""),
+            data.get("experience", ""),
+            data.get("email", ""),
+            now,
+            ""
         ]
         sheet.append_row(row)
         print("✅ Saved to Google Sheets")
