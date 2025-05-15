@@ -71,19 +71,32 @@ def webhook():
                 return respond(phone, reply)
 
             user_data[phone]["data"]["full_name"] = text
-            reply = f"נעים מאוד {text}!\nמה כתובת המגורים שלך?"
+            reply = f"נעים מאוד {text}!\nמה כתובת המגורים שלך? (רחוב + עיר)"
 
         elif current_step == "city":
+            if len(text) < 5 or len(text.split()) < 2 or text.isdigit():
+                reply = "נראה שכתובת המגורים ששלחת קצרה או לא ברורה 🏠\nאנא כתוב כתובת מלאה – לדוגמה: 'רחוב הרצל 12, ירושלים'"
+                return respond(phone, reply)
+
             user_data[phone]["data"]["city"] = text
             loc_list = "\n".join([f"{i+1}. {loc}" for i, loc in enumerate(locations)])
             reply = f"אלו המוקדים שפתוחים כרגע לגיוס:\n\n{loc_list}\n\nלאיזה מוקד הכי נוח לך להגיע? (כתוב את שם העיר או מספר)"
 
         elif current_step == "location":
             selected = text
+
             if selected.isdigit():
                 index = int(selected) - 1
                 if 0 <= index < len(locations):
                     selected = locations[index]
+                else:
+                    reply = "אנא הקש מספר בין 1 ל־9 ✍️ או כתוב את שם העיר כפי שמופיע ברשימה"
+                    return respond(phone, reply)
+
+            elif selected not in locations:
+                reply = "לא זיהינו את שם העיר ששלחת 🤔\nאנא כתוב את *שם העיר בדיוק כפי שמופיע ברשימה* או הקש מספר בין 1 ל־9"
+                return respond(phone, reply)
+
             user_data[phone]["data"]["location"] = selected
             reply = "מה מספר הטלפון שלך ליצירת קשר?"
 
@@ -111,7 +124,7 @@ def webhook():
 
             save_to_sheet(user_data[phone]["data"])
 
-            closing = "🌟 תודה שפנית אלינו! מאחלים לך המון הצלחה, ונשמח להיות איתך בקשר 🤝\n\nלהתחלה חדשה של שיחה כתוב 'חדש'"
+            closing = "🌟 תודה שפנית אלינו! מאחלים לך המון הצלחה, ונשמח להיות איתך בקשר 🤝\n\nלהתחלה חדשה של שיחה כתוב 'חדש'\n\n*צוות מוקדי הידברות*"
             user_data[phone]["step"] = "done"
             return respond(phone, closing)
 
