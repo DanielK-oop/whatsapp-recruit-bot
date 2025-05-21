@@ -64,4 +64,20 @@ def webhook():
             }
             return respond(phone, "שלום! 👋\nהתחלנו שיחה חדשה כי עבר זמן מה 🕒\nמה שמך המלא? (שם פרטי + שם משפחה)")
 
-        # שיחה הסתיימה
+        # שיחה הסתיימה – התחלה מחדש
+        if user_data[phone]["step"] == "done":
+            user_data[phone] = {
+                "step": 0,
+                "data": {},
+                "last_active": now
+            }
+            return respond(phone, "שלום! 👋\nהתחלנו שיחה חדשה 😄\nמה שמך המלא? (שם פרטי + שם משפחה)")
+
+        # שמירה על זמן הפעילות
+        user_data[phone]["last_active"] = now
+        step_index = user_data[phone]["step"]
+        current_step = steps[step_index]
+
+        if current_step == "full_name":
+            if len(text.split()) < 2:
+                return respond(phone, "נראה ששל
