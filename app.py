@@ -5,7 +5,6 @@ import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 import re
-import traceback
 
 app = Flask(__name__)
 
@@ -17,16 +16,26 @@ locations = [
     "טבריה", "צפת", "נהריה", "נתיבות"
 ]
 
-PHONE_NUMBER_ID = "633789676488255"  # מזהה מספר חדש ב־Meta
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")  # אמור להיות moked123
-ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")  # הטוקן הקבוע שלך
+# מזהים מהסביבה
+PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID", "633789676488255")
+ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")  # קבוע מהמערכת
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "moked123")
 
+# אימות webhook מ-Meta
 @app.route("/webhook", methods=["GET"])
 def verify():
-    if request.args.get("hub.verify_token") == VERIFY_TOKEN:
-        return request.args.get("hub.challenge")
-    return "Unauthorized", 403
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
 
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        print("✅ Webhook verified successfully")
+        return challenge, 200
+    else:
+        print("❌ Webhook verification failed")
+        return "Unauthorized", 403
+
+# קבלת הודעות מ-WhatsApp
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
@@ -52,7 +61,7 @@ def webhook():
 
         if phone not in user_data:
             user_data[phone] = {"step": 0, "data": {}}
-            return respond(phone, "שלום! 👋\nהגעת לבוט החכם של מוקד הידברות.\nנשמח לבדוק התאמה למשרה עבורך – זה לוקח פחות מדקה ⏱\n\nמה שמך המלא? (שם פרטי + שם משפחה)")
+            return respond(phone, "שלום! 👋\nהגעת לבוט של מוקדי הידברות.\nנשמח לבדוק התאמה למשרה ✍️\n\nמה שמך המלא? (שם פרטי + שם משפחה)")
 
         step_index = user_data[phone]["step"]
         current_step = steps[step_index]
@@ -65,7 +74,7 @@ def webhook():
 
         elif current_step == "city":
             if len(text) < 5 or len(text.split()) < 2 or text.isdigit():
-                return respond(phone, "נראה שכתובת המגורים ששלחת קצרה או לא ברורה 🏠\nאנא כתוב כתובת מלאה – לדוגמה: 'רחוב הרצל 12, ירושלים'")
+                return respond(phone, "נראה שכתובת המגורים לא תקינה 🏠\nאנא כתוב כתובת מלאה – לדוגמה: 'רחוב הרצל 12, ירושלים'")
             user_data[phone]["data"]["city"] = text
             loc_list = "\n".join([f"{i+1}. {loc}" for i, loc in enumerate(locations)])
             reply = f"אלו המוקדים שפתוחים כרגע לגיוס:\n\n{loc_list}\n\nלאיזה מוקד הכי נוח לך להגיע? (כתוב את שם העיר או מספר)"
@@ -79,27 +88,27 @@ def webhook():
                 else:
                     return respond(phone, "אנא הקש מספר בין 1 ל־9 ✍️ או כתוב את שם העיר כפי שמופיע ברשימה")
             elif selected not in locations:
-                return respond(phone, "לא זיהינו את שם העיר ששלחת 🤔\nאנא כתוב את *שם העיר בדיוק כפי שמופיע ברשימה* או הקש מספר בין 1 ל־9")
+                return respond(phone, "לא זיהינו את שם העיר 🤔\nאנא כתוב את *שם העיר בדיוק כפי שמופיע ברשימה* או הקש מספר בין 1 ל־9")
             user_data[phone]["data"]["location"] = selected
             reply = "מה מספר הטלפון שלך ליצירת קשר?"
 
         elif current_step == "phone":
             if not re.match(r"^05\d{8}$", text):
-                return respond(phone, "נראה שמספר הטלפון ששלחת לא תקין 📱\nאנא כתוב מספר ישראלי בפורמט מלא, לדוגמה: 0521234567")
+                return respond(phone, "נראה שמספר הטלפון לא תקין 📱\nאנא כתוב מספר ישראלי מלא, לדוגמה: 0521234567")
             user_data[phone]["data"]["phone"] = text
             reply = "ולסיום – כתובת המייל שלך?"
 
         elif current_step == "email":
             if not re.match(r"[^@]+@[^@]+\.[^@]+", text):
-                return respond(phone, "נראה שכתובת המייל לא תקינה 📧\nאנא נסה שוב עם כתובת תקינה לדוגמה: daniel@gmail.com")
+                return respond(phone, "נראה שכתובת המייל לא תקינה 📧\nלדוגמה: daniel@gmail.com")
             user_data[phone]["data"]["email"] = text
-            reply = "ולפני סיום שאלה קטנה 😊\nהאם יש לך ניסיון קודם במוקד מכירות או מוקד התרמות?"
+            reply = "ולפני סיום שאלה קטנה 😊\nהאם יש לך ניסיון במוקד מכירות או התרמות?"
 
         elif current_step == "experience":
             user_data[phone]["data"]["experience"] = text
-            respond(phone, "תודה רבה על המידע! 🙏\nהפרטים התקבלו ונחזור אליך בהקדם עם עדכון לגבי ההתאמה 😊")
+            respond(phone, "תודה רבה על המידע! 🙏\nהפרטים התקבלו ונחזור אליך בהקדם 😊")
             save_to_sheet(user_data[phone]["data"])
-            closing = "הפרטים הועברו בהצלחה ✅\nנחזור אליך בהקדם בקשר לפרטים ששלחת.\nתודה רבה על פנייתך 🙏\nצוות מוקדי הידברות"
+            closing = "הפרטים הועברו בהצלחה ✅\nנחזור אליך בקרוב בקשר לפרטים ששלחת.\nתודה רבה 🙏\nצוות מוקדי הידברות"
             user_data[phone]["step"] = "done"
             return respond(phone, closing)
 
@@ -108,7 +117,6 @@ def webhook():
 
     except Exception as e:
         print("❌ Error:", e)
-        traceback.print_exc()
         return "ok", 200
 
 def respond(phone, message):
