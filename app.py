@@ -17,9 +17,9 @@ locations = [
     "טבריה", "צפת", "נהריה", "נתיבות"
 ]
 
-PHONE_NUMBER_ID = "646699505195428"  # מוגדר ישירות
-VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
-ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
+PHONE_NUMBER_ID = "633789676488255"  # מזהה מספר חדש ב־Meta
+VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")  # אמור להיות moked123
+ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")  # הטוקן הקבוע שלך
 
 @app.route("/webhook", methods=["GET"])
 def verify():
