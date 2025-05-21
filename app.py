@@ -5,6 +5,7 @@ import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 import re
+import traceback
 
 app = Flask(__name__)
 
@@ -16,7 +17,7 @@ locations = [
     "טבריה", "צפת", "נהריה", "נתיבות"
 ]
 
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
+PHONE_NUMBER_ID = "646699505195428"  # מוגדר ישירות
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN")
 ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 
@@ -107,6 +108,7 @@ def webhook():
 
     except Exception as e:
         print("❌ Error:", e)
+        traceback.print_exc()
         return "ok", 200
 
 def respond(phone, message):
