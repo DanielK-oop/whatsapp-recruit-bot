@@ -16,26 +16,20 @@ locations = [
     "טבריה", "צפת", "נהריה", "נתיבות"
 ]
 
-# מזהים מהסביבה
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID", "633789676488255")
-ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")  # קבוע מהמערכת
+PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID", "704326896086247")
+ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN")
 VERIFY_TOKEN = os.environ.get("VERIFY_TOKEN", "moked123")
 
-# אימות webhook מ-Meta
 @app.route("/webhook", methods=["GET"])
 def verify():
     mode = request.args.get("hub.mode")
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
-
     if mode == "subscribe" and token == VERIFY_TOKEN:
-        print("✅ Webhook verified successfully")
+        print("✅ Webhook verified")
         return challenge, 200
-    else:
-        print("❌ Webhook verification failed")
-        return "Unauthorized", 403
+    return "Unauthorized", 403
 
-# קבלת הודעות מ-WhatsApp
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
